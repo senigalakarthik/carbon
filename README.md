@@ -446,10 +446,9 @@ This project is currently available without a specified license.
 
 If you plan to make the repository public, consider adding an appropriate open-source license such as the MIT License.
 
-## Author
+## Authors
 
-Your Name
+Karthik Senigala & Nikhil Penumala
 
 Built with Python, Flask, JavaScript, Chart.js, and a goal of making sustainable travel decisions more practical and personalized.
 
-You can paste this directly into `README.md` in your GitHub repository.
