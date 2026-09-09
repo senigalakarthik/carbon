@@ -1,29 +1,3 @@
-#!/usr/bin/env python3
-"""
-============================================================================
- PERSONAL TRAVEL CARBON INTELLIGENCE
-============================================================================
-A premium, single-file Flask application that analyzes personal travel,
-calculates CO2 footprint, compares realistic alternatives against a user's
-own tolerance for extra time/cost, and surfaces the single smallest change
-that produces the biggest carbon benefit.
-
-RUN:
-    pip install flask requests
-    python app.py
-    -> open http://127.0.0.1:5000
-
-NOTES ON THE AI COACH (OpenRouter):
-    This app never stores or hardcodes any API key on the server, and it
-    never reads one from environment variables. The "AI Travel Coach" chat
-    widget (bottom-right) asks YOU to paste your own OpenRouter API key
-    (e.g. sk-or-v1-...). The key is kept only in your browser's
-    localStorage and is sent with each chat request; the server relays it
-    to OpenRouter for that single request and does not persist it.
-    Get a key at https://openrouter.ai/keys
-============================================================================
-"""
-
 import random
 import datetime
 from itertools import count
@@ -37,15 +11,6 @@ except ImportError:  # pragma: no cover
 
 app = Flask(__name__)
 
-# ============================================================================
-# 1. CONFIGURATION — emission factors, cost, speed, realistic distance caps
-# ============================================================================
-
-# ef = grams CO2 per km (well-to-wheel style averages, illustrative)
-# cost_km = local currency (₹) per km, all-in (fuel/fare/maintenance)
-# speed = average moving speed km/h
-# overhead_min = fixed overhead (waiting, parking, walking to stop) in minutes
-# max_km = realistic distance ceiling for this mode (None = no cap)
 MODES = {
     "car":       {"label": "Car (Petrol)",   "icon": "🚗", "color": "#334155", "ef": 192, "cost_km": 9.0,  "speed": 28, "overhead_min": 3, "max_km": None},
     "car_ev":    {"label": "Car (Electric)", "icon": "🔋", "color": "#0ea5a3", "ef": 53,  "cost_km": 3.2,  "speed": 28, "overhead_min": 3, "max_km": None},
@@ -62,9 +27,8 @@ PURPOSES = ["Commute", "Work", "Errand", "Shopping", "Leisure", "Social", "Fitne
 
 CURRENCY = "₹"
 
-# CO2 <-> real world conversion constants (approximate, clearly labelled as estimates)
-KG_CO2_PER_LITRE_PETROL = 2.31      # burning 1L petrol ~2.31kg CO2
-KG_CO2_ABSORBED_PER_TREE_YEAR = 21  # a mature tree absorbs ~21kg CO2/year
+KG_CO2_PER_LITRE_PETROL = 2.31     
+KG_CO2_ABSORBED_PER_TREE_YEAR = 21  
 
 DEFAULT_LIMITS = {
     "max_extra_time_min": 15,
@@ -78,10 +42,6 @@ _id_counter = count(1)
 def next_id():
     return next(_id_counter)
 
-
-# ============================================================================
-# 2. CORE CALCULATIONS
-# ============================================================================
 
 def calc_co2_kg(mode: str, distance_km: float) -> float:
     return round(distance_km * MODES[mode]["ef"] / 1000.0, 3)
@@ -102,13 +62,9 @@ def is_realistic(mode: str, distance_km: float) -> bool:
     return cap is None or distance_km <= cap
 
 
-# ============================================================================
-# 3. IN-MEMORY DATA STORE + DEMO DATA
-# ============================================================================
-
-TRIPS = []          # list of trip dicts
+TRIPS = []        
 LIMITS = dict(DEFAULT_LIMITS)
-BEHAVIOR_CHANGE_DATE = None  # set after seeding
+BEHAVIOR_CHANGE_DATE = None 
 
 
 def add_trip_record(date_str, origin, destination, purpose, mode,
@@ -144,9 +100,9 @@ def seed_demo_data():
 
     for i in range(span_days, -1, -1):
         d = today - datetime.timedelta(days=i)
-        weekday = d.weekday()  # 0=Mon
+        weekday = d.weekday() 
 
-        if weekday < 5:  # weekday commute, twice a day
+        if weekday < 5:  
             base_dist = 9.4 + rnd.uniform(-0.6, 0.6)
             if d < change_date:
                 mode = rnd.choices(["car", "motorbike"], weights=[80, 20])[0]
@@ -158,14 +114,13 @@ def seed_demo_data():
             add_trip_record(d.isoformat(), "Home", "Office", "Commute", mode, base_dist)
             add_trip_record(d.isoformat(), "Office", "Home", "Commute", mode, base_dist + rnd.uniform(-0.3, 0.5))
 
-        # occasional weekday errand
         if weekday < 5 and rnd.random() < 0.18:
             dist = rnd.uniform(2, 6)
             mode = rnd.choices(["car", "bike", "walk", "motorbike"], weights=[45, 20, 15, 20])[0]
             add_trip_record(d.isoformat(), "Office", "Market", "Errand", mode, dist)
             add_trip_record(d.isoformat(), "Market", "Home", "Errand", mode, dist * 1.1)
 
-        # weekend leisure / social / shopping
+       
         if weekday >= 5 and rnd.random() < 0.55:
             purpose = rnd.choice(["Leisure", "Social", "Shopping", "Fitness"])
             dist = rnd.uniform(3, 16)
@@ -176,7 +131,6 @@ def seed_demo_data():
             add_trip_record(d.isoformat(), "Home", purpose + " spot", purpose, mode, dist)
             add_trip_record(d.isoformat(), purpose + " spot", "Home", purpose, mode, dist * 1.05)
 
-    # a few realistic high-carbon outlier trips (e.g. out-of-town)
     for i, days_ago in enumerate([61, 40, 19, 6]):
         d = today - datetime.timedelta(days=days_ago)
         dist = rnd.uniform(70, 160)
@@ -187,11 +141,6 @@ def seed_demo_data():
 
 
 seed_demo_data()
-
-
-# ============================================================================
-# 4. ANALYTICS
-# ============================================================================
 
 def week_span(trips):
     if not trips:
@@ -384,11 +333,8 @@ def build_recommendations(limits):
             )
         reasons.append(f"You already make this trip ~{best_realistic['pattern']['weekly_frequency']}x/week, so the impact compounds fast.")
         best_realistic["reasons"] = reasons
-
-    # Minimum Change, Maximum Impact: smallest extra time among candidates that
-    # still deliver a *meaningful* reduction (>= min threshold, already enforced by qualifying),
-    # tie-broken by smallest extra cost.
-    minimum_change = None
+   
+ minimum_change = None
     if qualifying_candidates:
         minimum_change = min(
             qualifying_candidates,
@@ -488,7 +434,7 @@ def compute_alerts():
     alerts = []
     today = datetime.date.fromisoformat(TRIPS[-1]["date"]) if TRIPS else datetime.date.today()
 
-    # --- Carbon Spike --------------------------------------------------
+ 
     last7 = [t for t in TRIPS if (today - datetime.date.fromisoformat(t["date"])).days < 7]
     prior_weeks = [t for t in TRIPS if 7 <= (today - datetime.date.fromisoformat(t["date"])).days < 35]
     last7_co2 = sum(t["co2_kg"] for t in last7)
@@ -507,7 +453,7 @@ def compute_alerts():
             "suggest": "No need to overhaul everything — just check Compare Options for that one journey next time.",
         })
 
-    # --- Habit Change ----------------------------------------------------
+
     last30 = [t for t in TRIPS if (today - datetime.date.fromisoformat(t["date"])).days < 30]
     prev30 = [t for t in TRIPS if 30 <= (today - datetime.date.fromisoformat(t["date"])).days < 60]
 
@@ -541,7 +487,6 @@ def compute_alerts():
                 "suggest": "When you're ready, Best Realistic Change can point to the easiest single swap to bring it back down.",
             })
 
-    # --- Opportunity Alert ------------------------------------------------
     patterns = compute_patterns()
     limits = LIMITS
     opportunity = None
@@ -592,10 +537,6 @@ def compute_contribution():
                 "of local air quality or traffic.",
     }
 
-
-# ============================================================================
-# 5. AI TRAVEL COACH — OpenRouter proxy (no server-side key storage)
-# ============================================================================
 
 def build_ai_context():
     summary = compute_summary()
@@ -666,7 +607,7 @@ def api_chat():
             json={"model": model, "messages": messages, "max_tokens": 700},
             timeout=45,
         )
-    except Exception as e:  # pragma: no cover
+    except Exception as e:  
         return jsonify({"error": f"Could not reach OpenRouter: {e}"}), 502
 
     if resp.status_code != 200:
@@ -686,9 +627,6 @@ def api_chat():
     return jsonify({"reply": reply})
 
 
-# ============================================================================
-# 6. API ROUTES
-# ============================================================================
 
 @app.route("/api/modes")
 def api_modes():
@@ -791,10 +729,6 @@ def api_alerts():
 def api_contribution():
     return jsonify(compute_contribution())
 
-
-# ============================================================================
-# 7. FRONTEND (single-page app: HTML + CSS + JS)
-# ============================================================================
 
 HTML_PAGE = """<!DOCTYPE html>
 <html lang="en">
