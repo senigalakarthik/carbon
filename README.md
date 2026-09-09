@@ -1,5 +1,3 @@
-Sure. Here is the same README with the emojis and decorative symbols removed.
-
 # Personal Travel Carbon Intelligence
 
 Track your travel, understand your carbon footprint, and make smaller, smarter changes.
